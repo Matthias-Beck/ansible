@@ -17,7 +17,7 @@ module: netapp_e_iscsi_interface
 short_description: manage E-Series iSCSI interface configuration
 description:
     - Configure settings of an E-Series iSCSI interface
-version_added: '2.6'
+version_added: '2.7'
 author: Michael Price (@lmprice)
 extends_documentation_fragment:
     - netapp.eseries
