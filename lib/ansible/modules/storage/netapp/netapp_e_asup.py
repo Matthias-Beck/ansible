@@ -233,7 +233,7 @@ class Asup(object):
         try:
             (rc, result) = request(self.url + 'device-asup', headers=HEADERS, **self.creds)
 
-            if not result['asupCapable']:
+            if not (result['asupCapable'] and result['onDemandCapable']):
                 self.module.fail_json(msg="ASUP is not supported on this device. Array Id [%s]." % (self.ssid))
             return result
 
