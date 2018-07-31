@@ -23,7 +23,7 @@ short_description: Configure Element SW Node Network Interfaces - Bond 1GbE and 
 extends_documentation_fragment:
     - netapp.solidfire
 version_added: '2.7'
-author: Sagar Hirapur (sagarhirapur@github.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Configure Element SW Node Network Interfaces for Bond 1G and 10G IP address.
 

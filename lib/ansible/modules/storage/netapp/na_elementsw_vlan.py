@@ -19,7 +19,7 @@ short_description: Manage ElementSW VLAN
 extends_documentation_fragment:
     - netapp.solidfire
 version_added: '2.7'
-author: Suhas Bangalore Shekar (bsuhas@netapp.com), Archana Ganesan(garchana@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Create, delete, modify VLAN
 
@@ -108,6 +108,7 @@ from ansible.module_utils._text import to_native
 import ansible.module_utils.netapp as netapp_utils
 from ansible.module_utils.netapp_module import NetAppModule
 import solidfire.common
+from ansible.module_utils.na_elementsw_module import NaElementSWModule
 
 HAS_SF_SDK = netapp_utils.has_sf_sdk()
 
@@ -145,6 +146,14 @@ class ElementSWVlan(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+
+        self.elementsw_helper = NaElementSWModule(self.sfe)
+
+        # add telemetry attributes
+        if self.parameters['attributes'] is not None:
+            self.parameters['attributes'].update(self.elementsw_helper.set_element_attributes(source='na_elementsw_vlan'))
+        else:
+            self.parameters['attributes'] = self.elementsw_helper.set_element_attributes(source='na_elementsw_vlan')
 
     def validate_keys(self):
         """

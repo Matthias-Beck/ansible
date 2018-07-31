@@ -3,8 +3,6 @@
 # (c) 2017, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-"""Element OS Software Volume Manager"""
-
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -16,15 +14,19 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = '''
 
-module: na_elementsw_volume
+module: sf_volume_manager
+deprecated:
+  removed_in: "2.10"
+  why: This Module has been replaced
+  alternative: please use na_elementsw_volume
 
-short_description: Manage ElementSW volumes
+short_description: Manage SolidFire volumes
 extends_documentation_fragment:
     - netapp.solidfire
-version_added: '2.7'
-author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
+version_added: '2.3'
+author: Sumit Kumar (sumit4@netapp.com)
 description:
-- Create, destroy, or update volumes on ElementSW
+- Create, destroy, or update volumes on SolidFire
 
 options:
 
@@ -37,71 +39,71 @@ options:
     name:
         description:
         - The name of the volume to manage.
-        - It accepts volume_name or volume_id
         required: true
 
     account_id:
         description:
         - Account ID for the owner of this volume.
-        - It accepts Account_id or Account_name
         required: true
 
-    enable512e:
+    512emulation:
         description:
-        - Required when C(state=present)
         - Should the volume provide 512-byte sector emulation?
-        type: bool
-        aliases:
-        - 512emulation
+        - Required when C(state=present)
+        required: false
 
     qos:
         description: Initial quality of service settings for this volume. Configure as dict in playbooks.
+        required: false
+        default: None
 
     attributes:
         description: A YAML dictionary of attributes that you would like to apply on this volume.
+        required: false
+        default: None
+
+    volume_id:
+        description:
+        - The ID of the volume to manage or update.
+        - In order to create multiple volumes with the same name, but different volume_ids, please declare the I(volume_id)
+          parameter with an arbitrary value. However, the specified volume_id will not be assigned to the newly created
+          volume (since it's an auto-generated property).
+        required: false
+        default: None
 
     size:
         description:
         - The size of the volume in (size_unit).
         - Required when C(state = present).
+        required: false
 
     size_unit:
         description:
         - The unit used to interpret the size parameter.
+        required: false
         choices: ['bytes', 'b', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb']
         default: 'gb'
 
     access:
-        description:
-        - Access allowed for the volume.
-        - readOnly           Only read operations are allowed.
-        - readWrite          Reads and writes are allowed.
-        - locked             No reads or writes are allowed.
-        - replicationTarget  Identify a volume as the target volume for a paired set of volumes.
-        - If the volume is not paired, the access status is locked.
-        - If unspecified, the access settings of the clone will be the same as the source.
+        required: false
         choices: ['readOnly', 'readWrite', 'locked', 'replicationTarget']
-
-    password:
         description:
-        - ElementSW access account password
-        aliases:
-        - pass
-
-    username:
-        description:
-        - ElementSW access account user-name
-        aliases:
-        - user
+        - "Access allowed for the volume."
+        - "readOnly: Only read operations are allowed."
+        - "readWrite: Reads and writes are allowed."
+        - "locked: No reads or writes are allowed."
+        - "replicationTarget: Identify a volume as the target volume for a paired set of volumes. If the volume is not paired, the access status is locked."
+        - "If unspecified, the access settings of the clone will be the same as the source."
+        default: None
 
 '''
 
 EXAMPLES = """
    - name: Create Volume
-     na_elementsw_volume:
-       hostname: "{{ elementsw_hostname }}"
-       username: "{{ elementsw_username }}"
-       password: "{{ elementsw_password }}"
+     sf_volume_manager:
+       hostname: "{{ solidfire_hostname }}"
+       username: "{{ solidfire_username }}"
+       password: "{{ solidfire_password }}"
        state: present
        name: AnsibleVol
        qos: {minIOPS: 1000, maxIOPS: 20000, burstIOPS: 50000}
@@ -111,20 +113,20 @@ EXAMPLES = """
        size_unit: gb
 
    - name: Update Volume
-     na_elementsw_volume:
-       hostname: "{{ elementsw_hostname }}"
-       username: "{{ elementsw_username }}"
-       password: "{{ elementsw_password }}"
+     sf_volume_manager:
+       hostname: "{{ solidfire_hostname }}"
+       username: "{{ solidfire_username }}"
+       password: "{{ solidfire_password }}"
        state: present
        name: AnsibleVol
        account_id: 3
        access: readWrite
 
    - name: Delete Volume
-     na_elementsw_volume:
-       hostname: "{{ elementsw_hostname }}"
-       username: "{{ elementsw_username }}"
-       password: "{{ elementsw_password }}"
+     sf_volume_manager:
+       hostname: "{{ solidfire_hostname }}"
+       username: "{{ solidfire_username }}"
+       password: "{{ solidfire_password }}"
        state: absent
        name: AnsibleVol
        account_id: 2
@@ -142,35 +144,27 @@ msg:
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible.module_utils.netapp as netapp_utils
-import solidfire.common
-from ansible.module_utils.na_elementsw_module import NaElementSWModule
 
 HAS_SF_SDK = netapp_utils.has_sf_sdk()
 
 
-class ElementOSVolume(object):
-    """
-    Contains methods to parse arguments,
-    derive details of  ElementSW objects
-    and send requests to ElementOS via
-    the ElementSW SDK
-    """
+class SolidFireVolume(object):
 
     def __init__(self):
-        """
-        Parse arguments, setup state variables,
-        check paramenters and ensure SDK is installed
-        """
+
         self._size_unit_map = netapp_utils.SF_BYTE_MAP
 
         self.argument_spec = netapp_utils.ontap_sf_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=True, choices=['present', 'absent']),
             name=dict(required=True, type='str'),
-            account_id=dict(required=True),
+            account_id=dict(required=True, type='str'),
+
             enable512e=dict(type='bool', aliases=['512emulation']),
             qos=dict(required=False, type='dict', default=None),
             attributes=dict(required=False, type='dict', default=None),
+
+            volume_id=dict(type='int', default=None),
             size=dict(type='int'),
             size_unit=dict(default='gb',
                            choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb',
@@ -189,72 +183,52 @@ class ElementOSVolume(object):
             supports_check_mode=True
         )
 
-        param = self.module.params
+        p = self.module.params
 
         # set up state variables
-        self.state = param['state']
-        self.name = param['name']
-        self.account_id = param['account_id']
-        self.enable512e = param['enable512e']
-        self.qos = param['qos']
-        self.attributes = param['attributes']
-        self.access = param['access']
-        self.size_unit = param['size_unit']
-        if param['size'] is not None:
-            self.size = param['size'] * self._size_unit_map[self.size_unit]
+        self.state = p['state']
+        self.name = p['name']
+        self.account_id = p['account_id']
+        self.enable512e = p['enable512e']
+        self.qos = p['qos']
+        self.attributes = p['attributes']
+
+        self.volume_id = p['volume_id']
+        self.size_unit = p['size_unit']
+        if p['size'] is not None:
+            self.size = p['size'] * self._size_unit_map[self.size_unit]
         else:
             self.size = None
-
+        self.access = p['access']
         if HAS_SF_SDK is False:
-            self.module.fail_json(msg="Unable to import the ElementSW Python SDK")
+            self.module.fail_json(msg="Unable to import the SolidFire Python SDK")
         else:
-            try:
-                self.sfe = netapp_utils.create_sf_connection(module=self.module)
-            except solidfire.common.ApiServerError:
-                self.module.fail_json(msg="Unable to create the connection")
+            self.sfe = netapp_utils.create_sf_connection(module=self.module)
 
-        self.elementsw_helper = NaElementSWModule(self.sfe)
-
-        # add telemetry attributes
-        if self.attributes is not None:
-            self.attributes.update(self.elementsw_helper.set_element_attributes(source='na_elementsw_volume'))
-        else:
-            self.attributes = self.elementsw_helper.set_element_attributes(source='na_elementsw_volume')
-
-    def get_account_id(self):
+    def get_volume(self, id_num):
         """
-            Return account id if found
-        """
-        try:
-            # Update and return self.account_id
-            self.account_id = self.elementsw_helper.account_exists(self.account_id)
-            return self.account_id
-        except Exception as err:
-            self.module.fail_json(msg="Error: account_id %s does not exist" % self.account_id, exception=to_native(err))
+            Return volume object if found
 
-    def get_volume(self):
+            :return: Details about the volume. None if not found.
+            :rtype: dict
         """
-            Return volume details if found
-        """
-        # Get volume details
-        volume_id = self.elementsw_helper.volume_exists(self.name, self.account_id)
-
-        if volume_id is not None:
-            # Return volume_details
-            volume_details = self.elementsw_helper.get_volume(volume_id)
-            if volume_details is not None:
-                return volume_details
+        volume_list = self.sfe.list_volumes_for_account(account_id=id_num)
+        for volume in volume_list.volumes:
+            if volume.name == self.name:
+                # Update self.volume_id
+                if self.volume_id is not None:
+                    if volume.volume_id == self.volume_id and str(volume.delete_time) == "":
+                        return volume
+                else:
+                    if str(volume.delete_time) == "":
+                        self.volume_id = volume.volume_id
+                        return volume
         return None
 
-    def create_volume(self):
-        """
-        Create Volume
-
-        :return: True if created, False if fails
-        """
+    def create_volume(self, id_num):
         try:
             self.sfe.create_volume(name=self.name,
-                                   account_id=self.account_id,
+                                   account_id=id_num,
                                    total_size=self.size,
                                    enable512e=self.enable512e,
                                    qos=self.qos,
@@ -264,31 +238,17 @@ class ElementOSVolume(object):
             self.module.fail_json(msg="Error provisioning volume %s of size %s" % (self.name, self.size),
                                   exception=to_native(err))
 
-    def delete_volume(self, volume_id):
-        """
-         Delete and purge the volume using volume id
-
-         :return: Success : True , Failed : False
-        """
+    def delete_volume(self):
         try:
-            self.sfe.delete_volume(volume_id=volume_id)
-            self.sfe.purge_deleted_volume(volume_id=volume_id)
-            # Delete method will delete and also purge the volume instead of moving the volume state to inactive.
+            self.sfe.delete_volume(volume_id=self.volume_id)
 
         except Exception as err:
-            # Throwing the exact error message instead of generic error message
-            self.module.fail_json(msg=err.message,
+            self.module.fail_json(msg="Error deleting volume %s" % self.volume_id,
                                   exception=to_native(err))
 
-    def update_volume(self, volume_id):
-        """
-
-        Update the volume with the specified param
-
-        :return: Success : True, Failed : False
-        """
+    def update_volume(self):
         try:
-            self.sfe.modify_volume(volume_id,
+            self.sfe.modify_volume(self.volume_id,
                                    account_id=self.account_id,
                                    access=self.access,
                                    qos=self.qos,
@@ -296,30 +256,29 @@ class ElementOSVolume(object):
                                    attributes=self.attributes)
 
         except Exception as err:
-            # Throwing the exact error message instead of generic error message
-            self.module.fail_json(msg=err.message,
+            self.module.fail_json(msg="Error updating volume %s" % self.name,
                                   exception=to_native(err))
 
+    def get_account_id(self):
+        account = self.sfe.get_account_by_name(self.account_id)
+        return account.account.account_id
+
     def apply(self):
-        # Perform pre-checks, call functions and exit
         changed = False
         volume_exists = False
         update_volume = False
-
-        self.get_account_id()
-        volume_detail = self.get_volume()
+        id_num = self.get_account_id()
+        volume_detail = self.get_volume(id_num)
 
         if volume_detail:
             volume_exists = True
-            volume_id = volume_detail.volume_id
+
             if self.state == 'absent':
                 # Checking for state change(s) here, and applying it later in the code allows us to support
                 # check_mode
-
                 changed = True
 
             elif self.state == 'present':
-                # Checking all the params for update operation
                 if volume_detail.access is not None and self.access is not None and volume_detail.access != self.access:
                     update_volume = True
                     changed = True
@@ -329,32 +288,18 @@ class ElementOSVolume(object):
                     update_volume = True
                     changed = True
 
-                elif volume_detail.qos is not None and self.qos is not None:
-                    """
-                    Actual volume_detail.qos has ['burst_iops', 'burst_time', 'curve', 'max_iops', 'min_iops'] keys.
-                    As only minOPS, maxOPS, burstOPS is important to consider, checking only these values.
-                    """
-                    volume_qos = volume_detail.qos.__dict__
-                    if volume_qos['min_iops'] != self.qos['minIOPS'] or volume_qos['max_iops'] != self.qos['maxIOPS'] \
-                       or volume_qos['burst_iops'] != self.qos['burstIOPS']:
-                            update_volume = True
-                            changed = True
-                else:
-                    # If check fails, do nothing
-                    pass
+                elif volume_detail.qos is not None and self.qos is not None and volume_detail.qos != self.qos:
+                    update_volume = True
+                    changed = True
 
-                if volume_detail.total_size is not None and volume_detail.total_size != self.size:
+                elif volume_detail.total_size is not None and volume_detail.total_size != self.size:
                     size_difference = abs(float(volume_detail.total_size - self.size))
                     # Change size only if difference is bigger than 0.001
                     if size_difference / self.size > 0.001:
                         update_volume = True
                         changed = True
 
-                else:
-                    # If check fails, do nothing
-                    pass
-
-                if volume_detail.attributes is not None and self.attributes is not None and \
+                elif volume_detail.attributes is not None and self.attributes is not None and \
                         volume_detail.attributes != self.attributes:
                     update_volume = True
                     changed = True
@@ -370,23 +315,22 @@ class ElementOSVolume(object):
             else:
                 if self.state == 'present':
                     if not volume_exists:
-                        self.create_volume()
+                        self.create_volume(id_num)
                         result_message = "Volume created"
                     elif update_volume:
-                        self.update_volume(volume_id)
+                        self.update_volume()
                         result_message = "Volume updated"
 
                 elif self.state == 'absent':
-                    self.delete_volume(volume_id)
+                    self.delete_volume()
                     result_message = "Volume deleted"
 
         self.module.exit_json(changed=changed, msg=result_message)
 
 
 def main():
-    # Create object and call apply
-    na_elementsw_volume = ElementOSVolume()
-    na_elementsw_volume.apply()
+    v = SolidFireVolume()
+    v.apply()
 
 
 if __name__ == '__main__':

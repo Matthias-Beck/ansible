@@ -44,9 +44,9 @@ options:
     - Name of the vserver to use.
     required: true
 
-  new_name:
+  from_name:
     description:
-    - New name of the volume to be renamed.
+    - Name of the existing volume to be renamed to name.
 
   is_infinite:
     type: bool
@@ -180,7 +180,7 @@ class NetAppOntapVolume(object):
                        'present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             vserver=dict(required=True, type='str'),
-            new_name=dict(required=False, type='str'),
+            from_name=dict(required=False, type='str'),
             is_infinite=dict(required=False, type='bool',
                              default=False),
             is_online=dict(required=False, type='bool',
@@ -368,8 +368,8 @@ class NetAppOntapVolume(object):
         vol_rename_zapi, vol_name_zapi = ['volume-rename-async', 'volume-name'] if self.parameters['is_infinite']\
             else ['volume-rename', 'volume']
         volume_rename = netapp_utils.zapi.NaElement.create_node_with_children(
-            vol_rename_zapi, **{vol_name_zapi: self.parameters['name'],
-                                'new-volume-name': str(self.parameters['new_name'])})
+            vol_rename_zapi, **{vol_name_zapi: self.parameters['from_name'],
+                                'new-volume-name': str(self.parameters['name'])})
         try:
             self.server.invoke_successfully(volume_rename,
                                             enable_tunneling=True)
@@ -483,8 +483,8 @@ class NetAppOntapVolume(object):
         current = self.get_volume()
         # rename and create are mutually exclusive
         rename, cd_action = None, None
-        if self.parameters.get('new_name'):
-            rename = self.na_helper.is_rename_action(current, self.get_volume(self.parameters['new_name']))
+        if self.parameters.get('from_name'):
+            rename = self.na_helper.is_rename_action(self.get_volume(self.parameters['from_name']), current)
         else:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify = self.na_helper.get_modified_attributes(current, self.parameters)

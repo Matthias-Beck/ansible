@@ -23,7 +23,7 @@ short_description: Manage Element OS Software Snapshots
 extends_documentation_fragment:
     - netapp.solidfire
 version_added: '2.7'
-author: Sagar Hirapur (sagarhirapur@github.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
     - Create, Modify or Delete Snapshot on Element OS Cluster.
 
@@ -207,6 +207,9 @@ class ElementOSSnapshot(object):
 
         self.elementsw_helper = NaElementSWModule(self.sfe)
 
+        # add telemetry attributes
+        self.attributes = self.elementsw_helper.set_element_attributes(source='na_elementsw_snapshot')
+
     def get_account_id(self):
         """
             Return account id if found
@@ -255,7 +258,8 @@ class ElementOSSnapshot(object):
                                      name=self.name,
                                      enable_remote_replication=self.enable_remote_replication,
                                      retention=self.retention,
-                                     snap_mirror_label=self.snap_mirror_label)
+                                     snap_mirror_label=self.snap_mirror_label,
+                                     attributes=self.attributes)
         except Exception as exception_object:
             self.module.fail_json(
                 msg='Error creating snapshot %s' % (

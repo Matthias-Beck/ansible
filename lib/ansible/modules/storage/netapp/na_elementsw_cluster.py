@@ -23,7 +23,7 @@ short_description: Manage Element SW Create Cluster
 extends_documentation_fragment:
     - netapp.solidfire
 version_added: '2.7'
-author: Sagar Hirapur (sagarhirapur@github.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Initialize Element Software node ownership to form a cluster.
 
@@ -102,6 +102,7 @@ import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible.module_utils.netapp as netapp_utils
+from ansible.module_utils.na_elementsw_module import NaElementSWModule
 
 HAS_SF_SDK = netapp_utils.has_sf_sdk()
 
@@ -153,19 +154,27 @@ class ElementSWCluster(object):
         else:
             self.sfe = netapp_utils.create_sf_connection(module=self.module, port=442)
 
+        self.elementsw_helper = NaElementSWModule(self.sfe)
+
+        # add telemetry attributes
+        if self.attributes is not None:
+            self.attributes.update(self.elementsw_helper.set_element_attributes(source='na_elementsw_cluster'))
+        else:
+            self.attributes = self.elementsw_helper.set_element_attributes(source='na_elementsw_cluster')
+
     def create_cluster(self):
         """
         Create Cluster
         """
         try:
-            self.sfe.creat_cluster(mvip=self.management_virtual_ip,
-                                   svip=self.storage_virtual_ip,
-                                   rep_count=self.replica_count,
-                                   username=self.cluster_admin_username,
-                                   password=self.cluster_admin_password,
-                                   accept_eula=self.accept_eula,
-                                   nodes=self.nodes,
-                                   attributes=self.attributes)
+            self.sfe.create_cluster(mvip=self.management_virtual_ip,
+                                    svip=self.storage_virtual_ip,
+                                    rep_count=self.replica_count,
+                                    username=self.cluster_admin_username,
+                                    password=self.cluster_admin_password,
+                                    accept_eula=self.accept_eula,
+                                    nodes=self.nodes,
+                                    attributes=self.attributes)
         except Exception as exception_object:
             self.module.fail_json(msg='Error create cluster %s' % (to_native(exception_object)),
                                   exception=traceback.format_exc())

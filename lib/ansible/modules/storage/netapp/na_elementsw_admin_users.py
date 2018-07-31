@@ -20,7 +20,7 @@ short_description: Manage SolidFire admin users
 extends_documentation_fragment:
     - netapp.solidfire
 version_added: '2.7'
-author: Chris Archibald (carchi@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Create, destroy, or update admin users on SolidFire
 
@@ -92,6 +92,7 @@ import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible.module_utils.netapp as netapp_utils
+from ansible.module_utils.na_elementsw_module import NaElementSWModule
 
 
 HAS_SF_SDK = netapp_utils.has_sf_sdk()
@@ -133,6 +134,11 @@ class NetAppElementSWAdminUser(object):
         else:
             self.sfe = netapp_utils.create_sf_connection(module=self.module)
 
+        self.elementsw_helper = NaElementSWModule(self.sfe)
+
+        # add telemetry attributes
+        self.attributes = self.elementsw_helper.set_element_attributes(source='na_elementsw_admin_users')
+
     def does_admin_user_exist(self):
         """
         Checks to see if an admin user exists or not
@@ -169,7 +175,8 @@ class NetAppElementSWAdminUser(object):
         if changed:
             self.sfe.modify_cluster_admin(cluster_admin_id=admin_user.cluster_admin_id,
                                           access=self.access,
-                                          password=self.element_password)
+                                          password=self.element_password,
+                                          attributes=self.attributes)
         return changed
 
     def add_admin_user(self):
@@ -180,7 +187,8 @@ class NetAppElementSWAdminUser(object):
         self.sfe.add_cluster_admin(username=self.element_username,
                                    password=self.element_password,
                                    access=self.access,
-                                   accept_eula=self.acceptEula)
+                                   accept_eula=self.acceptEula,
+                                   attributes=self.attributes)
 
     def delete_admin_user(self):
         """

@@ -19,7 +19,7 @@ short_description: Manage ElementSW Cluster Pair
 extends_documentation_fragment:
     - netapp.solidfire
 version_added: '2.7'
-author: Suhas Bangalore Shekar(bsuhas@netapp.com), Archana Ganesan(garchana@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Create, delete cluster pair
 

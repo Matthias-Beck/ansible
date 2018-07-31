@@ -23,7 +23,7 @@ short_description: Manage Element SW Node Drives
 extends_documentation_fragment:
     - netapp.solidfire
 version_added: '2.7'
-author: Sagar Hirapur (sagarhirapur@github.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
     - Add, Erase or Remove drive for nodes on Element Software Cluster.
 

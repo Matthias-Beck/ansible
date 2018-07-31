@@ -21,7 +21,7 @@ short_description: Create SolidFire Backups
 extends_documentation_fragment:
     - netapp.solidfire
 version_added: '2.7'
-author: Chris Archibald (carchi@netapp.com), Kevin Hutton (khutton@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Create backup
 
@@ -181,6 +181,11 @@ class ElementSWBackup(object):
         self.module.params["hostname"] = params["dest_hostname"]
         self.dest_connection = netapp_utils.create_sf_connection(self.module)
 
+        self.elementsw_helper = NaElementSWModule(self.sfe)
+
+        # add telemetry attributes
+        self.attributes = self.elementsw_helper.set_element_attributes(source='na_elementsw_backup')
+
     def apply(self):
         """
             Apply backup creation logic
@@ -196,7 +201,9 @@ class ElementSWBackup(object):
         # Start volume write on destination cluster
 
         try:
-            write_obj = self.dest_connection.start_bulk_volume_write(volume_id=self.module.params["dest_volume_id"], format=self.module.params["format"])
+            write_obj = self.dest_connection.start_bulk_volume_write(volume_id=self.module.params["dest_volume_id"],
+                                                                     format=self.module.params["format"],
+                                                                     attributes=self.attributes)
             write_key = write_obj.key
         except solidfire.common.ApiServerError as err:
             self.module.fail_json(msg="Error starting bulk write on destination cluster", exception=to_native(err))
@@ -222,7 +229,8 @@ class ElementSWBackup(object):
             read_obj = self.src_connection.start_bulk_volume_read(self.module.params["src_volume_id"],
                                                                   self.module.params["format"],
                                                                   script=self.module.params["script"],
-                                                                  script_parameters=self.module.params["script_parameters"])
+                                                                  script_parameters=self.module.params["script_parameters"],
+                                                                  attributes=self.attributes)
         except solidfire.common.ApiServerError as err:
             self.module.fail_json(msg="Error starting bulk read on source cluster", exception=to_native(err))
 

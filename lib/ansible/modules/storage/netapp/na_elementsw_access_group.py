@@ -25,7 +25,7 @@ short_description: Manage Element Software Access Groups
 extends_documentation_fragment:
     - netapp.solidfire
 version_added: '2.7'
-author: Sreekanth Rao (rsreekan@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Create, destroy, or update access groups on Element Software Cluster.
 
@@ -112,6 +112,7 @@ import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible.module_utils.netapp as netapp_utils
+from ansible.module_utils.na_elementsw_module import NaElementSWModule
 
 HAS_SF_SDK = netapp_utils.has_sf_sdk()
 
@@ -162,6 +163,14 @@ class ElementSWAccessGroup(object):
             self.module.fail_json(msg="Unable to import the SolidFire Python SDK")
         else:
             self.sfe = netapp_utils.create_sf_connection(module=self.module)
+
+        self.elementsw_helper = NaElementSWModule(self.sfe)
+
+        # add telemetry attributes
+        if self.attributes is not None:
+            self.attributes.update(self.elementsw_helper.set_element_attributes(source='na_elementsw_access_group'))
+        else:
+            self.attributes = self.elementsw_helper.set_element_attributes(source='na_elementsw_access_group')
 
     def get_access_group(self):
         """

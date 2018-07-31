@@ -19,7 +19,7 @@ short_description: Manage elementsw ldap admin users
 extends_documentation_fragment:
     - netapp.solidfire
 version_added: '2.7'
-author: Chris Archibald (carchi@netapp.com), Kevin Hutton (khutton@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Enable, disable ldap, and add ldap users
 

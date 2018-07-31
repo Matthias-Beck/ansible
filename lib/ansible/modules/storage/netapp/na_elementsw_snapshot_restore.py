@@ -25,7 +25,7 @@ short_description:  Element OS Software restore snapshot to active volume.
 extends_documentation_fragment:
     - netapp.solidfire
 version_added: '2.7'
-author: Sagar Hirapur (sagarhirapur@github.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Element OS Cluster restore snapshot to volume.
 
@@ -133,6 +133,9 @@ class ElementOSSnapshotRestore(object):
 
         self.elementsw_helper = NaElementSWModule(self.sfe)
 
+        # add telemetry attributes
+        self.attributes = self.elementsw_helper.set_element_attributes(source='na_elementsw_snapshot_restore')
+
     def get_account_id(self):
         """
             Get account id if found
@@ -163,7 +166,8 @@ class ElementOSSnapshotRestore(object):
         try:
             self.sfe.clone_volume(volume_id=self.src_volume_id,
                                   name=self.dest_volume_name,
-                                  snapshot_id=self.src_snapshot_id)
+                                  snapshot_id=self.src_snapshot_id,
+                                  attributes=self.attributes)
         except Exception as exception_object:
             self.module.fail_json(
                 msg='Error restore snapshot %s' % (to_native(exception_object)),

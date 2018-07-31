@@ -23,7 +23,7 @@ short_description: Create Element OS Software volume clone
 extends_documentation_fragment:
     - netapp.solidfire
 version_added: '2.7'
-author: Stephen Ranjit (stephenranjit@github.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Create volume clones on Element OS
 
@@ -182,6 +182,12 @@ class ElementOSVolumeClone(object):
             self.sfe = netapp_utils.create_sf_connection(module=self.module)
 
         self.elementsw_helper = NaElementSWModule(self.sfe)
+
+        # add telemetry attributes
+        if self.attributes is not None:
+            self.attributes.update(self.elementsw_helper.set_element_attributes(source='na_elementsw_volume_clone'))
+        else:
+            self.attributes = self.elementsw_helper.set_element_attributes(source='na_elementsw_volume_clone')
 
     def get_account_id(self):
         """

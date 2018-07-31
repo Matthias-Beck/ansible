@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018, NetApp, Inc
+# (c) 2017, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -13,61 +13,56 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 
 DOCUMENTATION = '''
-
-module: na_elementsw_check_connections
-
+module: sf_check_connections
+deprecated:
+  removed_in: "2.10"
+  why: This Module has been replaced
+  alternative: please use na_elementsw_check_connections
 short_description: Check connectivity to MVIP and SVIP.
 extends_documentation_fragment:
     - netapp.solidfire
-version_added: '2.7'
-author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
+version_added: '2.3'
+author: Sumit Kumar (sumit4@netapp.com)
 description:
 - Used to test the management connection to the cluster.
 - The test pings the MVIP and SVIP, and executes a simple API method to verify connectivity.
-
 options:
-
   skip:
     description:
     - Skip checking connection to SVIP or MVIP.
     choices: ['svip', 'mvip']
-
   mvip:
     description:
     - Optionally, use to test connection of a different MVIP.
     - This is not needed to test the connection to the target cluster.
-
   svip:
     description:
     - Optionally, use to test connection of a different SVIP.
     - This is not needed to test the connection to the target cluster.
-
 '''
 
 
 EXAMPLES = """
    - name: Check connections to MVIP and SVIP
-     na_elementsw_check_connections:
+     sf_check_connections:
        hostname: "{{ solidfire_hostname }}"
        username: "{{ solidfire_username }}"
        password: "{{ solidfire_password }}"
 """
 
 RETURN = """
-
 """
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible.module_utils.netapp as netapp_utils
-from ansible.module_utils.netapp_module import NetAppModule
 
 
 HAS_SF_SDK = netapp_utils.has_sf_sdk()
 
 
-class NaElementSWConnection(object):
+class SolidFireConnection(object):
 
     def __init__(self):
         self.argument_spec = netapp_utils.ontap_sf_host_argument_spec()
@@ -79,74 +74,101 @@ class NaElementSWConnection(object):
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            required_if=[
-                ('skip', 'svip', ['mvip']),
-                ('skip', 'mvip', ['svip'])
-            ],
             supports_check_mode=True
         )
 
-        self.na_helper = NetAppModule()
-        self.parameters = self.module.params.copy()
-        self.msg = ""
+        p = self.module.params
+
+        # set up state variables
+        self.skip = p['skip']
+        self.mvip = p['mvip']
+        self.svip = p['svip']
 
         if HAS_SF_SDK is False:
-            self.module.fail_json(msg="Unable to import the ElementSW Python SDK")
+            self.module.fail_json(msg="Unable to import the SolidFire Python SDK")
         else:
-            self.elem = netapp_utils.create_sf_connection(self.module, port=442)
+            self.sfe = netapp_utils.ElementFactory.create(p['hostname'], p['username'], p['password'], port=442)
 
     def check_mvip_connection(self):
         """
             Check connection to MVIP
-
             :return: true if connection was successful, false otherwise.
             :rtype: bool
         """
         try:
-            test = self.elem.test_connect_mvip(mvip=self.parameters['mvip'])
+            test = self.sfe.test_connect_mvip(mvip=self.mvip)
+            result = test.details.connected
             # Todo - Log details about the test
-            return test.details.connected
+            return result
 
         except Exception as e:
-            self.msg += 'Error checking connection to MVIP: %s' % to_native(e)
+            self.module.fail_json(msg='Error checking connection to MVIP: %s' % to_native(e), exception=traceback.format_exc())
             return False
 
     def check_svip_connection(self):
         """
             Check connection to SVIP
-
             :return: true if connection was successful, false otherwise.
             :rtype: bool
         """
         try:
-            test = self.elem.test_connect_svip(svip=self.parameters['svip'])
+            test = self.sfe.test_connect_svip(svip=self.svip)
+            result = test.details.connected
             # Todo - Log details about the test
-            return test.details.connected
+            return result
+
         except Exception as e:
-            self.msg += 'Error checking connection to SVIP: %s' % to_native(e)
+            self.module.fail_json(msg='Error checking connection to SVIP: %s' % to_native(e), exception=traceback.format_exc())
             return False
 
-    def apply(self):
-        passed = False
-        if self.parameters.get('skip') is None:
+    def check(self):
+
+        failed = True
+        msg = ''
+
+        if self.skip is None:
+            mvip_connection_established = self.check_mvip_connection()
+            svip_connection_established = self.check_svip_connection()
+
             # Set failed and msg
-            passed = self.check_mvip_connection()
-            # check if both connections have passed
-            passed &= self.check_svip_connection()
-        elif self.parameters['skip'] == 'mvip':
-            passed |= self.check_svip_connection()
-        elif self.parameters['skip'] == 'svip':
-            passed |= self.check_mvip_connection()
-        if not passed:
-            self.module.fail_json(msg=self.msg)
+            if not mvip_connection_established:
+                failed = True
+                msg = 'Connection to MVIP failed.'
+            elif not svip_connection_established:
+                failed = True
+                msg = 'Connection to SVIP failed.'
+            else:
+                failed = False
+
+        elif self.skip == 'mvip':
+            svip_connection_established = self.check_svip_connection()
+
+            # Set failed and msg
+            if not svip_connection_established:
+                failed = True
+                msg = 'Connection to SVIP failed.'
+            else:
+                failed = False
+
+        elif self.skip == 'svip':
+            mvip_connection_established = self.check_mvip_connection()
+
+            # Set failed and msg
+            if not mvip_connection_established:
+                failed = True
+                msg = 'Connection to MVIP failed.'
+            else:
+                failed = False
+
+        if failed:
+            self.module.fail_json(msg=msg)
         else:
             self.module.exit_json()
 
 
 def main():
-    connect_obj = NaElementSWConnection()
-    connect_obj.apply()
-
+    v = SolidFireConnection()
+    v.check()
 
 if __name__ == '__main__':
     main()
