@@ -202,7 +202,7 @@ class NetAppOntapcifsServer(object):
         if self.ou is not None:
             options['oganizational-unit'] = self.ou
         if self.force is not None:
-            options['force-account-overwrite'] = lower(str(self.force))
+            options['force-account-overwrite'] = str(self.force).lower()
 
         cifs_server_create = netapp_utils.zapi.NaElement.create_node_with_children(
             'cifs-server-create', **options)
