@@ -119,8 +119,7 @@ RETURN = """
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible.module_utils.netapp as netapp_utils
-from ansible.module_utils.na_elementsw_module import NaElementSWModule
-from ansible.module_utils.netapp_module import NetAppModule
+from ansible.module_utils.netapp_elementsw_module import NaElementSWModule
 import solidfire.common
 import time
 

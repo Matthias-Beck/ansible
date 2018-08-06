@@ -132,19 +132,22 @@ class NetAppModule(object):
         return modified
 
     def is_rename_action(self, source, target):
-        ''' takes a source and target objects, and returns True
+        ''' takes a source and target object, and returns True
             if a rename is required
             eg:
             source = self.get_object(source_name)
             target = self.get_object(target_name)
             action = is_rename_action(source, target)
+            :return: None for error, True for rename action, False otherwise
         '''
         if source is None and target is None:
             # error, do nothing
+            # cannot rename an non existent resource
             # alternatively we could create B
-            return False
+            return None
         if source is not None and target is not None:
             # error, do nothing
+            # idempotency (or) new_name_is_already_in_use
             # alternatively we could delete B and rename A to B
             return False
         if source is None and target is not None:
