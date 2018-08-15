@@ -88,7 +88,7 @@ def na_ontap_host_argument_spec():
         username=dict(required=True, type='str', aliases=['user']),
         password=dict(required=True, type='str', aliases=['pass'], no_log=True),
         https=dict(required=False, type='bool', default=False),
-        no_cert_verify=dict(required=False, type='bool', default=False),
+        validate_certs=dict(required=False, type='bool', default=True),
         http_port=dict(required=False, type='int')
     )
 
@@ -122,7 +122,7 @@ def setup_na_ontap_zapi(module, vserver=None):
     username = module.params['username']
     password = module.params['password']
     https = module.params['https']
-    no_cert_verify = module.params['no_cert_verify']
+    validate_certs = module.params['validate_certs']
     port = module.params['http_port']
 
     if HAS_NETAPP_LIB:
@@ -140,9 +140,8 @@ def setup_na_ontap_zapi(module, vserver=None):
                 port = 443
             transport_type = 'HTTPS'
             # HACK to bypass certificate verification
-            if no_cert_verify is True:
-                if (not os.environ.get('PYTHONHTTPSVERIFY', '') and
-                    getattr(ssl, '_create_unverified_context', None)):
+            if validate_certs is True:
+                if not os.environ.get('PYTHONHTTPSVERIFY', '') and getattr(ssl, '_create_unverified_context', None):
                     ssl._create_default_https_context = ssl._create_unverified_context
         else:
             if port is None:
@@ -230,7 +229,7 @@ def request(url, data=None, headers=None, method='GET', use_proxy=True,
         return resp_code, data
 
 
-def ems_log_event(source, server, name="Ansible", id="12345", version="1.1",
+def ems_log_event(source, server, name="Ansible", id="12345", version="2.7",
                   category="Information", event="setup", autosupport="false"):
     ems_log = zapi.NaElement('ems-autosupport-log')
     # Host name invoking the API.

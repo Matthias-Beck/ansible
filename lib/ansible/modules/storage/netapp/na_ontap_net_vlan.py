@@ -12,11 +12,11 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = '''
 module: na_ontap_net_vlan
-short_description: Manage NetApp Ontap network vlan
+short_description: Manage NetApp ONTAP network vlan
 extends_documentation_fragment:
     - netapp.ontap
 version_added: '2.6'
-author: Chris Archibald (carchi@netapp.com), Kevin Hutton (khutton@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Create or Delete a network vlan
 options:

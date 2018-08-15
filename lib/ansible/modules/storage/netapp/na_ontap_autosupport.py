@@ -15,7 +15,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 
 DOCUMENTATION = """
-author: "Archana Ganesan (garchana@netapp.com), Suhas Bangalore Shekar (bsuhas@netapp.com)"
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
   - "Enable/Disable Autosupport"
 extends_documentation_fragment:

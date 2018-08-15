@@ -12,8 +12,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = '''
 short_description: Create consistency group snapshot
-author:
-- Archana Ganesan (garchana@netapp.com), Suhas Bangalore Shekar (bsuhas@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
   - Create consistency group snapshot for ONTAP volumes.
 extends_documentation_fragment:

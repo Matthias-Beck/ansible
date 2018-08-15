@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018, NetApp, Inc
+# (c) 2017, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -8,19 +8,24 @@ __metaclass__ = type
 
 
 ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
+                    'status': ['deprecated'],
                     'supported_by': 'community'}
 
 
 DOCUMENTATION = '''
 
-module: na_ontap_user_role
+module: na_cdot_user_role
 
 short_description: useradmin configuration and management
 extends_documentation_fragment:
-    - netapp.na_ontap
-version_added: '2.6'
-author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
+    - netapp.ontap
+version_added: '2.3'
+author: Sumit Kumar (sumit4@netapp.com)
+
+deprecated:
+  removed_in: '2.11'
+  why: Updated modules released with increased functionality
+  alternative: Use M(na_ontap_user_role) instead.
 
 description:
 - Create or destroy user roles
@@ -30,8 +35,8 @@ options:
   state:
     description:
     - Whether the specified user should exist or not.
+    required: true
     choices: ['present', 'absent']
-    default: present
 
   name:
     description:
@@ -47,7 +52,7 @@ options:
     description:
     - The name of the role to manage.
     choices: ['none', 'readonly', 'all']
-    default: all
+    default: 'all'
 
   vserver:
     description:
@@ -59,7 +64,7 @@ options:
 EXAMPLES = """
 
     - name: Create User Role
-      na_ontap_user_role:
+      na_cdot_user_role:
         state: present
         name: ansibleRole
         command_directory_name: DEFAULT
@@ -84,16 +89,18 @@ import ansible.module_utils.netapp as netapp_utils
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapUserRole(object):
+class NetAppCDOTUserRole(object):
 
     def __init__(self):
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.ontap_sf_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=True, choices=['present', 'absent']),
             name=dict(required=True, type='str'),
+
             command_directory_name=dict(required=True, type='str'),
             access_level=dict(required=False, type='str', default='all',
                               choices=['none', 'readonly', 'all']),
+
             vserver=dict(required=True, type='str'),
         ))
 
@@ -101,18 +108,22 @@ class NetAppOntapUserRole(object):
             argument_spec=self.argument_spec,
             supports_check_mode=True
         )
-        parameters = self.module.params
+
+        p = self.module.params
+
         # set up state variables
-        self.state = parameters['state']
-        self.name = parameters['name']
-        self.command_directory_name = parameters['command_directory_name']
-        self.access_level = parameters['access_level']
-        self.vserver = parameters['vserver']
+        self.state = p['state']
+        self.name = p['name']
+
+        self.command_directory_name = p['command_directory_name']
+        self.access_level = p['access_level']
+
+        self.vserver = p['vserver']
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+            self.server = netapp_utils.setup_ontap_zapi(module=self.module)
 
     def get_role(self):
         """
@@ -131,6 +142,7 @@ class NetAppOntapUserRole(object):
                                            'role-name': self.name,
                                            'command-directory-name':
                                                self.command_directory_name})
+
         query = netapp_utils.zapi.NaElement('query')
         query.add_child_elem(query_details)
         security_login_role_get_iter.add_child_elem(query)
@@ -142,16 +154,15 @@ class NetAppOntapUserRole(object):
             # Error 16031 denotes a role not being found.
             if to_native(e.code) == "16031":
                 return False
-            # Error 16039 denotes command directory not found.
-            elif to_native(e.code) == "16039":
-                return False
             else:
                 self.module.fail_json(msg='Error getting role %s: %s' % (self.name, to_native(e)),
                                       exception=traceback.format_exc())
+
         if (result.get_child_by_name('num-records') and
                 int(result.get_child_content('num-records')) >= 1):
             return True
-        return False
+        else:
+            return False
 
     def create_role(self):
         role_create = netapp_utils.zapi.NaElement.create_node_with_children(
@@ -161,11 +172,12 @@ class NetAppOntapUserRole(object):
                                                  self.command_directory_name,
                                              'access-level':
                                                  self.access_level})
+
         try:
             self.server.invoke_successfully(role_create,
                                             enable_tunneling=False)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error creating role %s: %s' % (self.name, to_native(error)),
+        except netapp_utils.zapi.NaApiError as e:
+            self.module.fail_json(msg='Error creating role %s: %s' % (self.name, to_native(e)),
                                   exception=traceback.format_exc())
 
     def delete_role(self):
@@ -178,21 +190,23 @@ class NetAppOntapUserRole(object):
         try:
             self.server.invoke_successfully(role_delete,
                                             enable_tunneling=False)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error removing role %s: %s' % (self.name, to_native(error)),
+        except netapp_utils.zapi.NaApiError as e:
+            self.module.fail_json(msg='Error removing role %s: %s' % (self.name, to_native(e)),
                                   exception=traceback.format_exc())
 
     def apply(self):
         changed = False
-        vserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.vserver)
-        netapp_utils.ems_log_event("na_ontap_user_role", vserver)
         role_exists = self.get_role()
+
         if role_exists:
             if self.state == 'absent':
                 changed = True
+
+            # Check if properties need to be updated
         else:
             if self.state == 'present':
                 changed = True
+
         if changed:
             if self.module.check_mode:
                 pass
@@ -200,14 +214,18 @@ class NetAppOntapUserRole(object):
                 if self.state == 'present':
                     if not role_exists:
                         self.create_role()
+
+                    # Update properties
+
                 elif self.state == 'absent':
                     self.delete_role()
+
         self.module.exit_json(changed=changed)
 
 
 def main():
-    obj = NetAppOntapUserRole()
-    obj.apply()
+    v = NetAppCDOTUserRole()
+    v.apply()
 
 
 if __name__ == '__main__':

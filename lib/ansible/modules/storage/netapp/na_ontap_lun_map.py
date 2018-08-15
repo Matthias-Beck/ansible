@@ -19,14 +19,14 @@ DOCUMENTATION = """
 
 module: na_ontap_lun_map
 
-short_description: Manage NetApp Ontap lun maps
+short_description: Manage NetApp ONTAP lun maps
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.6'
-author: chhaya gunawat (chhayag@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 
 description:
-- Map and unmap luns on NetApp Ontap.
+- Map and unmap luns on NetApp ONTAP.
 
 options:
 

@@ -12,12 +12,11 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = '''
 module: na_ontap_broadcast_domain_ports
-short_description: Manage NetApp Ontap broadcast domain ports
+short_description: Manage NetApp ONTAP broadcast domain ports
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.6'
-author:
-- Chris Archibald (carchi@netapp.com), Kevin Hutton (khutton@netapp.com), Suhas Bangalore Shekar (bsuhas@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Add or remove ONTAP broadcast domain ports.  Existing ports that are not listed are kept.
 options:

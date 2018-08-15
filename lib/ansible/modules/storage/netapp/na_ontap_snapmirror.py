@@ -11,7 +11,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 
 DOCUMENTATION = '''
-author: "Suhas Bangalore Shekar (bsuhas@netapp.com), Archana Ganesan (garchana@netapp.com)"
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
   - Create/Delete/Initialize/Modify SnapMirror volume/vserver relationships
 extends_documentation_fragment:

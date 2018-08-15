@@ -14,11 +14,11 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = """
 module: na_ontap_nfs
-short_description: Manage Ontap NFS status
+short_description: Manage ONTAP NFS status
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.6'
-author: Suhas Bangalore Shekar  (bsuhas@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Enable or disable nfs on ONTAP
 options:
@@ -85,11 +85,11 @@ options:
     choices: ['enabled', 'disabled']
   tcp:
     description:
-    - Enable TCP.
+    - Enable TCP (support from ONTAP 9.3 onward).
     choices: ['enabled', 'disabled']
   udp:
     description:
-    - Enable UDP.
+    - Enable UDP (support from ONTAP 9.3 onward).
     choices: ['enabled', 'disabled']
   showmount:
     description:

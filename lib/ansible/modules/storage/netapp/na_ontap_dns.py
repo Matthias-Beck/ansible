@@ -17,7 +17,7 @@ short_description: Create, delete, modify DNS servers.
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.7'
-author: Chhaya Gunawat (chhayag@netapp.com), Laurent Nicolas (laurentn@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Create, delete, modify DNS servers.
 options:
@@ -182,7 +182,7 @@ class NetAppOntapDns(object):
 
     def apply(self):
         # asup logging
-        netapp_utils.ems_log_event("na_ontap_dns", self.server)
+        netapp_utils.ems_log_event("na_ontap_dns", self.vserver)
 
         dns_attrs = self.get_dns()
         changed = False

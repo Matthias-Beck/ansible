@@ -20,8 +20,7 @@ short_description: Manage NetApp ONTAP volumes.
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.6'
-author:
-- Sumit Kumar (sumit4@netapp.com), Suhas Bangalore Shekar (bsuhas@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 
 description:
 - Create or destroy or modify volumes on NetApp ONTAP.

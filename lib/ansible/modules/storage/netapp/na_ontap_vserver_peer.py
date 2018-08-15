@@ -11,7 +11,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 
 DOCUMENTATION = '''
-author: "Suhas Bangalore Shekar (bsuhas@netapp.com), Archana Ganesan (garchana@netapp.com)"
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
   - Create/Delete vserver peer
 extends_documentation_fragment:
@@ -37,6 +37,18 @@ options:
     description:
       - Specifies name of the peer Cluster.
       - If peer Cluster is not given, it considers local Cluster.
+  dest_hostname:
+    description:
+     - Destination hostname or IP address.
+     - Required for creating the vserver peer relationship
+  dest_username:
+    description:
+     - Destination username.
+     - Optional if this is same as source username.
+  dest_password:
+    description:
+     - Destination password.
+     - Optional if this is same as source password.
 short_description: "Manage NetApp Vserver peering"
 version_added: "2.7"
 '''
@@ -53,6 +65,7 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+        dest_hostname: "{{ netapp_dest_hostname }}"
 
     - name: vserver peer delete
       na_ontap_vserver_peer:
@@ -89,11 +102,17 @@ class NetAppONTAPVserverPeer(object):
             vserver=dict(required=True, type='str'),
             peer_vserver=dict(required=True, type='str'),
             peer_cluster=dict(required=False, type='str'),
-            applications=dict(required=False, type='list', choices=['snapmirror', 'file_copy', 'lun_copy'])
+            applications=dict(required=False, type='list', choices=['snapmirror', 'file_copy', 'lun_copy']),
+            dest_hostname=dict(required=False, type='str'),
+            dest_username=dict(required=False, type='str'),
+            dest_password=dict(required=False, type='str')
         ))
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            required_if=[
+                ('state', 'present', ['dest_hostname'])
+            ],
             supports_check_mode=True
         )
 
@@ -104,6 +123,13 @@ class NetAppONTAPVserverPeer(object):
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
             self.server = netapp_utils.setup_ontap_zapi(module=self.module)
+            if self.parameters.get('dest_hostname'):
+                self.module.params['hostname'] = self.parameters['dest_hostname']
+                if self.parameters.get('dest_username'):
+                    self.module.params['username'] = self.parameters['dest_username']
+                if self.parameters.get('dest_password'):
+                    self.module.params['password'] = self.parameters['dest_password']
+                self.dest_server = netapp_utils.setup_ontap_zapi(module=self.module)
 
     def vserver_peer_get_iter(self):
         """
@@ -198,17 +224,18 @@ class NetAppONTAPVserverPeer(object):
 
     def vserver_peer_accept(self):
         """
-        Accept a vserver peer
+        Accept a vserver peer at destination
         """
+        # peer-vserver -> remote (source vserver is provided)
+        # vserver -> local (destination vserver is provided)
         vserver_peer_accept = netapp_utils.zapi.NaElement.create_node_with_children(
-            'vserver-peer-accept', **{'peer-vserver': self.parameters['peer_vserver'],
-                                      'vserver': self.parameters['vserver']})
+            'vserver-peer-accept', **{'peer-vserver': self.parameters['vserver'],
+                                      'vserver': self.parameters['peer_vserver']})
         try:
-            self.server.invoke_successfully(vserver_peer_accept,
-                                            enable_tunneling=True)
+            self.dest_server.invoke_successfully(vserver_peer_accept, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error accepting vserver peer %s: %s'
-                                      % (self.parameters['vserver'], to_native(error)),
+                                      % (self.parameters['peer_vserver'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def apply(self):
@@ -216,16 +243,12 @@ class NetAppONTAPVserverPeer(object):
         Apply action to create/delete or accept vserver peer
         """
         current = self.vserver_peer_get()
-        if self.parameters['state'] == 'present' and \
-                current and current['peer_state'] == 'pending':
+        cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        if cd_action == 'create':
+            self.vserver_peer_create()
             self.vserver_peer_accept()
-            self.na_helper.changed = True
-        else:
-            cd_action = self.na_helper.get_cd_action(current, self.parameters)
-            if cd_action == 'create':
-                self.vserver_peer_create()
-            elif cd_action == 'delete':
-                self.vserver_peer_delete()
+        elif cd_action == 'delete':
+            self.vserver_peer_delete()
 
         self.module.exit_json(changed=self.na_helper.changed)
 

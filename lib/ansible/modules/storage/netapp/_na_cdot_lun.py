@@ -8,30 +8,35 @@ __metaclass__ = type
 
 
 ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
+                    'status': ['deprecated'],
                     'supported_by': 'community'}
 
 
 DOCUMENTATION = '''
 
-module: na_ontap_lun
+module: na_cdot_lun
 
-short_description: Manage  NetApp ONTAP luns
+short_description: Manage  NetApp cDOT luns
 extends_documentation_fragment:
-    - netapp.na_ontap
-version_added: '2.6'
-author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
+    - netapp.ontap
+version_added: '2.3'
+author: Sumit Kumar (sumit4@netapp.com)
+
+deprecated:
+  removed_in: '2.11'
+  why: Updated modules released with increased functionality
+  alternative: Use M(na_ontap_lun) instead.
 
 description:
-- Create, destroy, resize luns on NetApp ONTAP.
+- Create, destroy, resize luns on NetApp cDOT.
 
 options:
 
   state:
     description:
     - Whether the specified lun should exist or not.
+    required: true
     choices: ['present', 'absent']
-    default: present
 
   name:
     description:
@@ -41,7 +46,7 @@ options:
   flexvol_name:
     description:
     - The name of the FlexVol the lun should exist on.
-    required: true
+    - Required when C(state=present).
 
   size:
     description:
@@ -56,16 +61,13 @@ options:
 
   force_resize:
     description:
-      Forcibly reduce the size. This is required for reducing the size of the LUN to avoid accidentally
-      reducing the LUN size.
-    type: bool
+    - Forcibly reduce the size. This is required for reducing the size of the LUN to avoid accidentally reducing the LUN size.
     default: false
 
   force_remove:
     description:
     - If "true", override checks that prevent a LUN from being destroyed if it is online and mapped.
     - If "false", destroying an online and mapped LUN will fail.
-    type: bool
     default: false
 
   force_remove_fenced:
@@ -73,7 +75,6 @@ options:
     - If "true", override checks that prevent a LUN from being destroyed while it is fenced.
     - If "false", attempting to destroy a fenced LUN will fail.
     - The default if not specified is "false". This field is available in Data ONTAP 8.2 and later.
-    type: bool
     default: false
 
   vserver:
@@ -81,43 +82,23 @@ options:
     description:
     - The name of the vserver to use.
 
-  ostype:
-    description:
-    - The os type for the LUN.
-    default: 'image'
-
-  space_reserve:
-    description:
-    - This can be set to "false" which will create a LUN without any space being reserved.
-    type: bool
-    default: True
-
-  space_allocation:
-    description:
-    - This enables support for the SCSI Thin Provisioning features.  If the Host and file system do
-      not support this do not enable it.
-    type: bool
-    default: False
-
 '''
 
 EXAMPLES = """
 - name: Create LUN
-  na_ontap_lun:
+  na_cdot_lun:
     state: present
     name: ansibleLUN
     flexvol_name: ansibleVolume
     vserver: ansibleVServer
     size: 5
     size_unit: mb
-    ostype: linux
-    space_reserve: True
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
 
 - name: Resize Lun
-  na_ontap_lun:
+  na_cdot_lun:
     state: present
     name: ansibleLUN
     force_resize: True
@@ -133,7 +114,6 @@ EXAMPLES = """
 RETURN = """
 
 """
-
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
@@ -143,7 +123,7 @@ import ansible.module_utils.netapp as netapp_utils
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapLUN(object):
+class NetAppCDOTLUN(object):
 
     def __init__(self):
 
@@ -160,9 +140,9 @@ class NetAppOntapLUN(object):
             yb=1024 ** 8
         )
 
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.ontap_sf_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=True, choices=['present', 'absent']),
             name=dict(required=True, type='str'),
             size=dict(type='int'),
             size_unit=dict(default='gb',
@@ -171,44 +151,38 @@ class NetAppOntapLUN(object):
             force_resize=dict(default=False, type='bool'),
             force_remove=dict(default=False, type='bool'),
             force_remove_fenced=dict(default=False, type='bool'),
-            flexvol_name=dict(required=True, type='str'),
+            flexvol_name=dict(type='str'),
             vserver=dict(required=True, type='str'),
-            ostype=dict(required=False, type='str', default='image'),
-            space_reserve=dict(required=False, type='bool', default=True),
-            space_allocation=dict(required=False, type='bool', default=False),
         ))
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             required_if=[
-                ('state', 'present', ['size'])
+                ('state', 'present', ['flexvol_name', 'size'])
             ],
             supports_check_mode=True
         )
 
-        parameters = self.module.params
+        p = self.module.params
 
         # set up state variables
-        self.state = parameters['state']
-        self.name = parameters['name']
-        self.size_unit = parameters['size_unit']
-        if parameters['size'] is not None:
-            self.size = parameters['size'] * self._size_unit_map[self.size_unit]
+        self.state = p['state']
+        self.name = p['name']
+        self.size_unit = p['size_unit']
+        if p['size'] is not None:
+            self.size = p['size'] * self._size_unit_map[self.size_unit]
         else:
             self.size = None
-        self.force_resize = parameters['force_resize']
-        self.force_remove = parameters['force_remove']
-        self.force_remove_fenced = parameters['force_remove_fenced']
-        self.flexvol_name = parameters['flexvol_name']
-        self.vserver = parameters['vserver']
-        self.ostype = parameters['ostype']
-        self.space_reserve = parameters['space_reserve']
-        self.space_allocation = parameters['space_allocation']
+        self.force_resize = p['force_resize']
+        self.force_remove = p['force_remove']
+        self.force_remove_fenced = p['force_remove_fenced']
+        self.flexvol_name = p['flexvol_name']
+        self.vserver = p['vserver']
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.vserver)
+            self.server = netapp_utils.setup_ontap_zapi(module=self.module, vserver=self.vserver)
 
     def get_lun(self):
         """
@@ -291,9 +265,7 @@ class NetAppOntapLUN(object):
         lun_create = netapp_utils.zapi.NaElement.create_node_with_children(
             'lun-create-by-size', **{'path': path,
                                      'size': str(self.size),
-                                     'ostype': self.ostype,
-                                     'space-reservation-enabled': str(self.space_reserve),
-                                     'space-allocation-enabled': str(self.space_allocation)})
+                                     'ostype': 'linux'})
 
         try:
             self.server.invoke_successfully(lun_create, enable_tunneling=True)
@@ -351,9 +323,9 @@ class NetAppOntapLUN(object):
 
     def apply(self):
         property_changed = False
+        multiple_properties_changed = False
         size_changed = False
         lun_exists = False
-        netapp_utils.ems_log_event("na_ontap_lun", self.server)
         lun_detail = self.get_lun()
 
         if lun_detail:
@@ -385,7 +357,8 @@ class NetAppOntapLUN(object):
                             # Ensure that size was actually changed. Please
                             # read notes in 'resize_lun' function for details.
                             size_changed = self.resize_lun()
-                            if not size_changed:
+                            if not size_changed and not \
+                                    multiple_properties_changed:
                                 property_changed = False
 
                 elif self.state == 'absent':
@@ -397,7 +370,7 @@ class NetAppOntapLUN(object):
 
 
 def main():
-    v = NetAppOntapLUN()
+    v = NetAppCDOTLUN()
     v.apply()
 
 

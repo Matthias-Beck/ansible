@@ -17,7 +17,7 @@ short_description: Manage NetApp ONTAP broadcast domains.
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.6'
-author: Chris Archibald (carchi8py@gmail.com), Kevin Hutton (khutton@netapp.com), Suhas Bangalore Shekar (bsuhas@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Modify a ONTAP broadcast domain.
 options:

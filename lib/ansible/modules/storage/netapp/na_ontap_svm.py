@@ -17,14 +17,14 @@ DOCUMENTATION = '''
 
 module: na_ontap_svm
 
-short_description: Manage NetApp Ontap svm
+short_description: Manage NetApp ONTAP svm
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.6'
-author: Archana Ganesan (garchana@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 
 description:
-- Create, modify or delete svm on NetApp Ontap
+- Create, modify or delete svm on NetApp ONTAP
 
 options:
 
@@ -45,12 +45,13 @@ options:
 
   root_volume:
     description:
-    - Root volume of the SVM. Required when C(state=present).
+    - Root volume of the SVM.
+    - Cannot be modified after creation.
 
   root_volume_aggregate:
     description:
     - The aggregate on which the root volume will be created.
-    - Required when C(state=present).
+    - Cannot be modified after creation.
 
   root_volume_security_style:
     description:
@@ -61,7 +62,7 @@ options:
         this will return the list of matching Vservers.
     -   The 'unified' security style, which applies only to Infinite Volumes,
         cannot be applied to a Vserver's root volume.
-    -   Required when C(state=present)
+    -   Cannot be modified after creation.
     choices: ['unix', 'ntfs', 'mixed', 'unified']
 
   allowed_protocols:
@@ -99,6 +100,8 @@ options:
   ipspace:
     description:
     - IPSpace name
+    - Cannot be modified after creation.
+
 
   snapshot_policy:
     description:
@@ -149,6 +152,13 @@ options:
     - zh_tw             Traditional Chinese euc-tw
     - zh_tw.big5        Traditional Chinese Big 5
 
+  subtype:
+    description:
+    - The subtype for vserver to be created.
+    - Cannot be modified after creation.
+    choices: ['default', 'dp_destination', 'sync_source', 'sync_destination']
+
+
 '''
 
 EXAMPLES = """
@@ -198,6 +208,7 @@ class NetAppOntapSVM(object):
             ipspace=dict(type='str', required=False),
             snapshot_policy=dict(type='str', required=False),
             language=dict(type='str', required=False),
+            subtype=dict(choices=['default', 'dp_destination', 'sync_source', 'sync_destination'])
         ))
 
         self.module = AnsibleModule(
@@ -219,6 +230,7 @@ class NetAppOntapSVM(object):
         self.language = p['language']
         self.ipspace = p['ipspace']
         self.snapshot_policy = p['snapshot_policy']
+        self.subtype = p['subtype']
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(
@@ -267,9 +279,14 @@ class NetAppOntapSVM(object):
                 'allowed-protocols').get_children()
             for protocol in get_protocols:
                 protocols.append(protocol.get_content())
-            vserver_details = {'name': vserver_info.get_child_content(
-                               'vserver-name'),
+            vserver_details = {'name': vserver_info.get_child_content('vserver-name'),
+                               'root_volume': vserver_info.get_child_content('root-volume'),
+                               'root_volume_aggregate': vserver_info.get_child_content('root-volume-aggregate'),
+                               'root_volume_security_style': vserver_info.get_child_content('root-volume-security-style'),
+                               'subtype': vserver_info.get_child_content('vserver-subtype'),
                                'aggr_list': aggr_list,
+                               'language': vserver_info.get_child_content('language'),
+                               'snapshot_policy': vserver_info.get_child_content('snapshot-policy'),
                                'allowed_protocols': protocols}
         return vserver_details
 
@@ -285,6 +302,8 @@ class NetAppOntapSVM(object):
             options['ipspace'] = self.ipspace
         if self.snapshot_policy is not None:
             options['snapshot-policy'] = self.snapshot_policy
+        if self.subtype is not None:
+            options['vserver-subtype'] = self.subtype
 
         vserver_create = netapp_utils.zapi.NaElement.create_node_with_children(
             'vserver-create', **options)
@@ -325,9 +344,16 @@ class NetAppOntapSVM(object):
                                   % (self.name, to_native(e)),
                                   exception=traceback.format_exc())
 
-    def modify_vserver(self, allowed_protocols, aggr_list):
+    def modify_vserver(self, allowed_protocols, aggr_list, language, snapshot_policy):
+
+        options = {'vserver-name': self.name}
+        if language:
+            options['language'] = self.language
+        if snapshot_policy:
+            options['snapshot-policy'] = self.snapshot_policy
+
         vserver_modify = netapp_utils.zapi.NaElement.create_node_with_children(
-            'vserver-modify', **{'vserver-name': self.name})
+            'vserver-modify', **options)
 
         if allowed_protocols:
             allowed_protocols = netapp_utils.zapi.NaElement(
@@ -364,6 +390,9 @@ class NetAppOntapSVM(object):
         rename_vserver = False
         modify_protocols = False
         modify_aggr_list = False
+        modify_snapshot_policy = False
+        modify_language = False
+
         if vserver_details is not None:
             if self.state == 'absent':
                 changed = True
@@ -381,6 +410,24 @@ class NetAppOntapSVM(object):
                     if self.aggr_list != vserver_details['aggr_list']:
                         modify_aggr_list = True
                         changed = True
+                if self.snapshot_policy is not None:
+                    if self.snapshot_policy != vserver_details['snapshot_policy']:
+                        modify_snapshot_policy = True
+                        changed = True
+                if self.language is not None:
+                    if self.language != vserver_details['language']:
+                        modify_language = True
+                        changed = True
+                if self.root_volume is not None and self.root_volume != vserver_details['root_volume']:
+                    self.module.fail_json(msg='Error modifying SVM %s: %s' % (self.name, 'cannot change root volume'))
+                if self.root_volume_aggregate is not None and self.root_volume_aggregate != vserver_details['root_volume_aggregate']:
+                    self.module.fail_json(msg='Error modifying SVM %s: %s' % (self.name, 'cannot change root volume aggregate'))
+                if self.root_volume_security_style is not None and self.root_volume_security_style != vserver_details['root_volume_security_style']:
+                    self.module.fail_json(msg='Error modifying SVM %s: %s' % (self.name, 'cannot change root volume security style'))
+                if self.subtype is not None and self.subtype != vserver_details['subtype']:
+                    self.module.fail_json(msg='Error modifying SVM %s: %s' % (self.name, 'cannot change subtype'))
+                if self.ipspace is not None and self.ipspace != vserver_details['ipspace']:
+                    self.module.fail_json(msg='Error modifying SVM %s: %s' % (self.name, 'cannot change ipspace'))
         else:
             if self.state == 'present':
                 changed = True
@@ -398,7 +445,7 @@ class NetAppOntapSVM(object):
                     else:
                         if modify_protocols or modify_aggr_list:
                             self.modify_vserver(
-                                modify_protocols, modify_aggr_list)
+                                modify_protocols, modify_aggr_list, modify_language, modify_snapshot_policy)
                 elif self.state == 'absent':
                     self.delete_vserver()
 

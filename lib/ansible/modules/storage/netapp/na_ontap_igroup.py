@@ -21,7 +21,7 @@ short_description: ONTAP iSCSI igroup configuration
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.6'
-author: chhaya gunawat (chhayag@netapp.com), Chris Archibald (carchi@netapp.com), Suhas Bangalore Shekar (bsuhas@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 
 description:
     - create, destroy or rename Igroups and add or remove initiator in igroups.

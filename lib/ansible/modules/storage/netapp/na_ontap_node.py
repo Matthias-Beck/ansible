@@ -17,7 +17,7 @@ short_description: Rename an ONTAP node.
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.7'
-author: Chhaya Gunawat (chhayag@netapp.com), Laurent Nicolas (laurentn@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
 - Rename an ONTAP node.
 options:

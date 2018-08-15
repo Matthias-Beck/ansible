@@ -500,7 +500,7 @@ class ElementSWSnapShotSchedule(object):
                                 actual_frequency_monthday = schedule_detail.frequency.monthdays
                                 temp_frequency_monthday = temp_frequency.monthdays
                                 for monthday in actual_frequency_monthday:
-                                    if str(monthday) not in temp_frequency_monthday:
+                                    if monthday not in temp_frequency_monthday:
                                         update_schedule = True
                                         changed = True
                         elif self.schedule_type == "DaysOfWeekFrequency":
@@ -537,7 +537,7 @@ class ElementSWSnapShotSchedule(object):
                         self.create_schedule()
                         result_message = "Snapshot Schedule created"
                 elif self.state == 'absent':
-                    self.delete_schedule(schedule_id)
+                    self.delete_schedule(schedule_detail.schedule_id)
                     result_message = "Snapshot Schedule deleted"
 
         self.module.exit_json(changed=changed, msg=result_message)

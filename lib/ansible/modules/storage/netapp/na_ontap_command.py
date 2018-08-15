@@ -11,7 +11,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'supported_by': 'community'}
 
 DOCUMENTATION = '''
-author: "Chris Archibald (carchi@netapp.com), Kevin Hutton (khutton@netapp.com)"
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
   - "Run system-cli commands on ONTAP"
 extends_documentation_fragment:

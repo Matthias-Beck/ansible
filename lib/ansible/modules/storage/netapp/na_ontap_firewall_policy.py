@@ -14,8 +14,7 @@ DOCUMENTATION = '''
 module: na_ontap_firewall_policy
 short_description: Manage a firewall policy
 version_added: '2.7'
-author:
-- Chris Archibald (carchi@netapp.com)
+author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
 description:
   - Manage a firewall policy for an Ontap Cluster
 extends_documentation_fragment:
